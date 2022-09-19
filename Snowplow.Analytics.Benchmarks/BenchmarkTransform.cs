@@ -1,6 +1,7 @@
 ﻿using BenchmarkDotNet.Attributes;
 using Snowplow.Analytics.Json;
 using Snowplow.Analytics.V2;
+using Snowplow.Analytics.V3;
 
 namespace Snowplow.Analytics.Benchmarks;
 
@@ -37,5 +38,11 @@ public class BenchmarkTransform
     public void EventTransformer_V2()
     {
         string result = EventTransformer2.Transform(_recordData);
+    }
+
+    [Benchmark]
+    public void EventTransformer_V3()
+    {
+        string result = EventTransformer3.Transform(_recordData);
     }
 }
