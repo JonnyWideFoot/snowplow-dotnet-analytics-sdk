@@ -297,9 +297,6 @@ public static class EventTransformer2
 
             writer.WriteEndObject();
         }
-        catch
-        {
-        }
         finally
         {
             writer.Flush();
