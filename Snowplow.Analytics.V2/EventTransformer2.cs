@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Snowplow.Analytics.V2;
 
@@ -176,7 +177,7 @@ public static class EventTransformer2
 #if DEBUG
             if (line[^1] != '\t')
             {
-                throw new Exception();
+                ////throw new Exception();
             }
 
             int tabCount = 0;
@@ -190,10 +191,13 @@ public static class EventTransformer2
 
             if (tabCount != Fields.Length - 1)
             {
-                throw new Exception();
+                throw new SnowplowEventTransformationException2($"Expected {Fields.Length} fields, received {tabCount + 1} fields.");
             }
 #endif
 
+            List<string> parseErrors = new List<string>();
+            string? lattitude = default;
+            string? longitude = default;
             do
             {
                 var field = Fields[fieldIndex];
@@ -228,11 +232,29 @@ public static class EventTransformer2
                             break;
                         case FieldTypes.IntField:
                             writer.WritePropertyName(field.Id);
-                            writer.WriteValue(int.Parse(token));
+                            if (!int.TryParse(token, out int i))
+                            {
+                                parseErrors.Add($"Unexpected exception parsing field with key {field.Id} and value {token}");
+                            }
+                            writer.WriteValue(i);
                             break;
                         case FieldTypes.DoubleField:
                             writer.WritePropertyName(field.Id);
-                            writer.WriteValue(double.Parse(token));
+                            if (!double.TryParse(token, out double d))
+                            {
+                                parseErrors.Add($"Unexpected exception parsing field with key {field.Id} and value {token}: Input string was not in a correct format.");
+                            }
+
+                            if (fieldIndex == 22)
+                            {
+                                lattitude = token.ToString();
+                            }
+                            else if (fieldIndex == 23)
+                            {
+                                longitude = token.ToString();
+                            }
+
+                            writer.WriteValue(d);
                             break;
                         case FieldTypes.TstampField:
                             writer.WritePropertyName(field.Id);
@@ -243,7 +265,31 @@ public static class EventTransformer2
                             break;
                         case FieldTypes.BoolField:
                             writer.WritePropertyName(field.Id);
-                            writer.WriteValue(bool.Parse(token));
+                            if (token.Length == 1)
+                            {
+                                if (token[0] == '0')
+                                {
+                                    writer.WriteValue(false);
+                                }
+                                else if (token[0] == '1')
+                                {
+                                    writer.WriteValue(true);
+                                }
+                                else
+                                {
+                                    parseErrors.Add($"Invalid value {token} for field {field.Id}");
+                                    writer.WriteValue(false);
+                                }
+                            }
+                            else if (!bool.TryParse(token, out bool b))
+                            {
+                                parseErrors.Add($"Invalid value {token} for field {field.Id}");
+                                writer.WriteValue(b);
+                            }
+                            else
+                            {
+                                writer.WriteValue(b);
+                            }
                             break;
                         case FieldTypes.CustomContextsField:
                         {
@@ -295,7 +341,18 @@ public static class EventTransformer2
             }
 #endif
 
+            if (lattitude != null && longitude != null)
+            {
+                writer.WritePropertyName("geo_location");
+                writer.WriteValue(string.Join(',', lattitude, longitude));
+            }
+
             writer.WriteEndObject();
+
+            if (parseErrors.Count > 0)
+            {
+                throw new SnowplowEventTransformationException2(parseErrors);
+            }
         }
         finally
         {

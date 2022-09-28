@@ -21,13 +21,12 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Snowplow.Analytics.Exceptions;
-using Snowplow.Analytics.Json;
+using Snowplow.Analytics.V4;
 using Xunit;
 
-namespace Snowplow.Analytics.Tests.Json
+namespace Snowplow.Analytics.Tests.V4
 {
-    public class EventTransformer3Test
+    public class EventTransformer4Test
     {
         private static readonly string _unstructJson = "{\n    'schema': 'iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-0',\n    'data': {\n      'schema': 'iglu:com.snowplowanalytics.snowplow/link_click/jsonschema/1-0-1',\n      'data': {\n        'targetUrl': 'http://www.example.com',\n        'elementClasses': ['foreground'],\n        'elementId': 'exampleLink'\n      }\n    }\n  }";
 
@@ -311,8 +310,7 @@ namespace Snowplow.Analytics.Tests.Json
 
         private string GetSerializedExpectedOutputForInputWithContextAndUnstructEvent()
         {
-            var expected = JObject.Parse(@"{
-                'geo_location' : '37.443604,-122.4124',
+            var expected = JObject.Parse(@"{                
                 'app_id' : 'angry-birds',
                 'platform' : 'web',
                 'etl_tstamp' : '2017-01-26T00:01:25.292Z',
@@ -489,7 +487,8 @@ namespace Snowplow.Analytics.Tests.Json
                 'event_format': 'jsonschema',
                 'event_version': '1-0-0',
                 'event_fingerprint': 'e3dbfa9cca0412c3d4052863cefb547f',
-                'true_tstamp': '2013-11-26T00:03:57.886Z'
+                'true_tstamp': '2013-11-26T00:03:57.886Z',
+                'geo_location' : '37.443604,-122.4124'
                 }");
 
             return JsonConvert.SerializeObject(expected);
@@ -497,8 +496,7 @@ namespace Snowplow.Analytics.Tests.Json
 
         private string GetSerializedExpectedOutputForInputWithoutContextAndUnstructEvent()
         {
-            var expected = JObject.Parse(@"{
-                'geo_location' : '37.443604,-122.4124',
+            var expected = JObject.Parse(@"{                
                 'app_id' : 'angry-birds',
                 'platform' : 'web',
                 'etl_tstamp' : '2017-01-26T00:01:25.292Z',
@@ -626,7 +624,8 @@ namespace Snowplow.Analytics.Tests.Json
                 'event_format': 'jsonschema',
                 'event_version': '1-0-0',
                 'event_fingerprint': 'e3dbfa9cca0412c3d4052863cefb547f',
-                'true_tstamp': '2013-11-26T00:03:57.886Z'
+                'true_tstamp': '2013-11-26T00:03:57.886Z',
+                'geo_location' : '37.443604,-122.4124'
                 }");
 
             return JsonConvert.SerializeObject(expected);
@@ -645,7 +644,7 @@ namespace Snowplow.Analytics.Tests.Json
             var input = GetInputWithContextAndUnstructEvent();
             var expected = GetSerializedExpectedOutputForInputWithContextAndUnstructEvent();
             var tsv = ConvertDictToTsv(input);
-            var transformedTsv = EventTransformer.Transform(tsv);
+            var transformedTsv = EventTransformer4.Transform(tsv);
             Assert.Equal(expected, transformedTsv);
         }
 
@@ -657,7 +656,7 @@ namespace Snowplow.Analytics.Tests.Json
 
             //convert data into TSV
             var tsv = ConvertDictToTsv(input);
-            var transformedTsv = EventTransformer.Transform(tsv);
+            var transformedTsv = EventTransformer4.Transform(tsv);
 
             Assert.Equal(expected, transformedTsv);
         }
@@ -670,9 +669,9 @@ namespace Snowplow.Analytics.Tests.Json
 
             try
             {
-                EventTransformer.Transform(tsv);
+                EventTransformer4.Transform(tsv);
             }
-            catch (SnowplowEventTransformationException sete)
+            catch (SnowplowEventTransformationException4 sete)
             {
                 exception = sete;
             }
@@ -688,9 +687,9 @@ namespace Snowplow.Analytics.Tests.Json
 
             try
             {
-                EventTransformer.Transform(malformedFieldsTsv);
+                EventTransformer4.Transform(malformedFieldsTsv);
             }
-            catch (SnowplowEventTransformationException sete)
+            catch (SnowplowEventTransformationException4 sete)
             {
                 exception = sete;
             }
@@ -703,15 +702,15 @@ namespace Snowplow.Analytics.Tests.Json
         [Fact]
         protected void TestMultipleMalformedField()
         {
-            SnowplowEventTransformationException exception = null;
+            SnowplowEventTransformationException4 exception = null;
 
             var malformedFieldsTsv = new string('\t', 102) + "bad_dvce_ismobile" + new string('\t', 8) + "bad_tax_base" + new string('\t', 20);
 
             try
             {
-                EventTransformer.Transform(malformedFieldsTsv);
+                EventTransformer4.Transform(malformedFieldsTsv);
             }
-            catch (SnowplowEventTransformationException sete)
+            catch (SnowplowEventTransformationException4 sete)
             {
                 exception = sete;
             }

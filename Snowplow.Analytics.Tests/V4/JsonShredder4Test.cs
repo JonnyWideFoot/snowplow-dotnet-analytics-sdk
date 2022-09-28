@@ -22,11 +22,12 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Snowplow.Analytics.Exceptions;
 using Snowplow.Analytics.Json;
+using Snowplow.Analytics.V4;
 using Xunit;
 
-namespace Snowplow.Analytics.Tests.Json
+namespace Snowplow.Analytics.Tests.V4
 {
-    public class JsonShredder3Test
+    public class JsonShredder4Test
     {
         [Theory]
         [InlineData("contexts", "iglu:com.acme/duplicated/jsonschema/20-0-5", "contexts_com_acme_duplicated_20")]
@@ -35,7 +36,7 @@ namespace Snowplow.Analytics.Tests.Json
         [InlineData("unstruct_event", "iglu:com.tesla/schema80TestDb_system/jsonschema/7-0-5", "unstruct_event_com_tesla_schema80_test_db_system_7")]
         public void TestFixSchema(string prefix, string igluUri, string expected)
         {
-            var fixedSchema = JsonShredder.FixSchema(prefix, igluUri);
+            var fixedSchema = JsonShredder4.FixSchema(prefix, igluUri);
             Assert.Equal(expected, fixedSchema);
         }
 
@@ -104,7 +105,7 @@ namespace Snowplow.Analytics.Tests.Json
                 "Could not extract inner data field from custom context." };
 
             var exceptionList = expectedExceptions.Except(exception.ErrorMessages);
-            Assert.Empty(exceptionList);
+            Assert.Equal(0, exceptionList.Count());
 
         }
 
