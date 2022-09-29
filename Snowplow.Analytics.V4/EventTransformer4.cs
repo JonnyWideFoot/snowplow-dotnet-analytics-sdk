@@ -285,30 +285,19 @@ public static class EventTransformer4
                             break;
                         case FieldTypes.CustomContextsField:
                             {
-                                if (token.Length > 0)
-                                {
-                                    var json = JsonShredder4.ParseContexts(token);
-                                    writer.WriteRawValue(json, true);
-                                }
-
+                                JsonShredder4.WriteContexts(writer, token);
                                 break;
                             }
 
                         case FieldTypes.UnstructField:
                             {
-                                var json = JsonShredder4.ParseUnstruct(token);
-                                writer.WriteRawValue(json, true);
+                                JsonShredder4.WriteUnstruct(writer, token);
                                 break;
                             }
 
                         case FieldTypes.DerivedContextsField:
                             {
-                                if (token.Length > 0)
-                                {
-                                    var json = JsonShredder4.ParseContexts(token);
-                                    writer.WriteRawValue(json, true);
-                                }
-
+                                JsonShredder4.WriteContexts(writer, token);
                                 break;
                             }
 
