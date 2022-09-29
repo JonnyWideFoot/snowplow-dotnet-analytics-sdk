@@ -15,6 +15,10 @@
  * License: Apache License Version 2.0
  */
 
+using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace Snowplow.Analytics.V4;
@@ -25,12 +29,273 @@ namespace Snowplow.Analytics.V4;
 /// </summary>
 public static class JsonShredder4
 {
-    public static ReadOnlySpan<char> ParseContexts(ReadOnlySpan<char> token)
+    public static void WriteContexts(Utf8JsonWriter writer, ReadOnlySpan<char> token)
     {
-        throw new NotImplementedException();
+        if (token.Length > 0)
+        {
+            ////ReadOnlySpan<byte> bytes = MemoryMarshal.Cast<char, byte>(token);
+            Span<byte> bytes = stackalloc byte[token.Length];
+            Encoding.UTF8.GetBytes(token, bytes);
+            var json = ParseContexts(bytes);
+            writer.WriteRawValue(json, true);
+        }
     }
 
-    public static ReadOnlySpan<char> ParseUnstruct(ReadOnlySpan<char> token)
+    public static void WriteUnstruct(Utf8JsonWriter writer, ReadOnlySpan<char> token)
+    {
+        if (token.Length > 0)
+        {
+            ReadOnlySpan<byte> bytes = MemoryMarshal.Cast<char, byte>(token);
+            var json = ParseUnstruct(bytes);
+            writer.WriteRawValue(json, true);
+        }
+    }
+
+    public static ReadOnlySpan<char> ParseContexts(ReadOnlySpan<byte> contexts)
+    {
+        Utf8JsonReader reader = new Utf8JsonReader(contexts);
+
+        reader = ReadPreamble(reader);
+
+        while (true)
+        {
+            reader = ReadDataBlock(reader, out bool done);
+
+            if (done)
+            {
+                break;
+            }
+        }
+
+        ReadEnd(reader);
+
+        return string.Empty;
+    }
+
+    private static Utf8JsonReader ReadEnd(Utf8JsonReader reader)
+    {
+        if (reader.TokenType != JsonTokenType.EndArray)
+        {
+            throw new Exception();
+        }
+
+        if (!reader.Read())
+        {
+            throw new Exception();
+        }
+
+        if (reader.TokenType != JsonTokenType.EndObject)
+        {
+            throw new Exception();
+        }
+
+        bool more = reader.Read();
+
+        if (more)
+        {
+            throw new Exception();
+        }
+
+        return reader;
+    }
+
+    private static Utf8JsonReader ReadDataBlock(Utf8JsonReader reader, out bool done)
+    {
+        reader = ReadDataBlockPreamble(reader, out done);
+
+        if (done)
+        {
+            return reader;
+        }
+
+        reader = ReadDataBlockProperties(reader);
+
+        reader.Read();
+
+        if (reader.TokenType != JsonTokenType.EndObject)
+        {
+            throw new Exception();
+        }
+
+        return reader;
+    }
+
+    private static Utf8JsonReader ReadDataBlockProperties(Utf8JsonReader reader)
+    {
+        while (true)
+        {
+            reader.Read();
+
+            if (reader.TokenType == JsonTokenType.EndObject)
+            {
+                break;
+            }
+
+            if (reader.TokenType != JsonTokenType.PropertyName)
+            {
+                throw new Exception();
+            }
+
+            string key = reader.GetString();
+            reader.Read();
+
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                string value = reader.GetString();
+                Console.WriteLine($"{key} : {value}");
+            }
+            else if (reader.TokenType == JsonTokenType.Number)
+            {
+                if (reader.TryGetInt64(out long l))
+                {
+                    Console.WriteLine($"{key} : {l}");
+                }
+                else if (reader.TryGetDouble(out double d))
+                {
+                    Console.WriteLine($"{key} : {d}");
+                }
+                else
+                {
+                    throw new Exception();
+                }
+            }
+            else if (reader.TokenType == JsonTokenType.False)
+            {
+                bool value = reader.GetBoolean();
+                Console.WriteLine($"{key} : {value}");
+            }
+            else if (reader.TokenType == JsonTokenType.True)
+            {
+                bool value = reader.GetBoolean();
+                Console.WriteLine($"{key} : {value}");
+            }
+            else
+            {
+                throw new Exception();
+            }
+        }
+
+        return reader;
+    }
+
+    private static Utf8JsonReader ReadDataBlockPreamble(Utf8JsonReader reader, out bool done)
+    {
+        reader.Read();
+
+        if (reader.TokenType != JsonTokenType.StartObject)
+        {
+            done = true;
+
+            if (reader.TokenType != JsonTokenType.EndArray)
+            {
+                throw new Exception();
+            }
+
+            return reader;
+        }
+
+        reader.Read();
+
+        string text = reader.GetString();
+
+        if (text != "schema")
+        {
+            throw new Exception();
+        }
+
+        reader.Read();
+
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new Exception();
+        }
+
+        text = reader.GetString();
+
+        Console.Write("Schema: ");
+        Console.WriteLine(text);
+        reader.Read();
+
+        text = reader.GetString();
+
+        if (text != "data")
+        {
+            throw new Exception();
+        }
+
+        reader.Read();
+
+        if (reader.TokenType != JsonTokenType.StartObject)
+        {
+            throw new Exception();
+        }
+
+        done = false;
+        return reader;
+    }
+
+    private static Utf8JsonReader ReadPreamble(Utf8JsonReader reader)
+    {
+        reader.Read();
+
+        if (reader.TokenType != JsonTokenType.StartObject)
+        {
+            throw new Exception();
+        }
+
+        reader.Read();
+
+        if (reader.TokenType != JsonTokenType.PropertyName)
+        {
+            throw new Exception();
+        }
+
+        string? text = reader.GetString();
+
+        if (text != "schema")
+        {
+            throw new Exception();
+        }
+
+        reader.Read();
+
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new Exception();
+        }
+
+        string schema = reader.GetString();
+
+        if (schema != "iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1")
+        {
+            throw new Exception();
+        }
+
+        reader.Read();
+
+        if (reader.TokenType != JsonTokenType.PropertyName)
+        {
+            throw new Exception();
+        }
+
+        text = reader.GetString();
+
+        if (text != "data")
+        {
+            throw new Exception();
+        }
+
+        reader.Read();
+
+        if (reader.TokenType != JsonTokenType.StartArray)
+        {
+            throw new Exception();
+        }
+
+        return reader;
+    }
+
+    public static ReadOnlySpan<char> ParseUnstruct(ReadOnlySpan<byte> token)
     {
         throw new NotImplementedException();
     }
